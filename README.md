@@ -1,4 +1,4 @@
-# pg__procfs
+# pg_procfs
 PostgreSQL extension to display /proc FS data from SQL 
 
 
