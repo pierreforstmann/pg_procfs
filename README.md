@@ -30,5 +30,14 @@ Run: <br>
 `create extension pg_profcs`;
 
 To display some /proc FS data:<br>
-`select * from pg_procfs('/proc/version');`<br>
+```
+select * from pg_procfs('/proc/version');
+ line |                                                                                     message                                          
+                                            
+------+--------------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------
+    0 | Linux version 4.18.0-372.19.1.el8_6.x86_64 (mockbuild@49c5e54ed716424c9ae8c1a3d1fef96f) (gcc version 8.5.0 20210514 (Red Hat 8.5.0-10
+) (GCC)) #1 SMP Tue Aug 2 13:42:59 EDT 2022
+(1 row)
+```
 
