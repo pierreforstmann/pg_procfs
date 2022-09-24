@@ -1,5 +1,5 @@
 # pg__procfs
-PostgreSQL extension to display /procfs data from SQL 
+PostgreSQL extension to display /proc FS data from SQL 
 
 
 # Installation
@@ -29,6 +29,6 @@ Add in `postgresql.conf`:
 Run: <br>
 `create extension pg_profcs`;
 
-To display some /procfs data:<br>
+To display some /proc FS data:<br>
 `select * from pg_procfs('/proc/version');`<br>
 
