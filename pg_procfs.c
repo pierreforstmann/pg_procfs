@@ -20,9 +20,6 @@
 #include "miscadmin.h"
 #include "pgtime.h"
 #include "utils/timestamp.h"
-#include "executor/spi.h"
-#include "access/xact.h"
-#include "utils/snapmgr.h"
 #include "pgstat.h"
 
 #include <sys/types.h>
@@ -54,9 +51,9 @@ static Datum pg_procfs_internal(FunctionCallInfo fcinfo);
 static text *g_result;
 
 /*
- * structure to access /procfs data 
+ * structure to access /proc  data 
  */
-struct	logdata {
+struct	data {
 	text	*data;
 	int	char_count;
 	int	line_count;
@@ -64,7 +61,7 @@ struct	logdata {
 	int	max_line_size;
 	char	*p;
 	int	first_newline_position;
-} g_logdata;
+} g_data;
 
 
 /*
@@ -97,91 +94,78 @@ _PG_fini(void)
 /* --- ---- */
 
 
-static void logdata_start(text *p_result)
+static void data_start(text *p_result)
 {
-	g_logdata.data = p_result;	
-	g_logdata.char_count = 0;
-       	g_logdata.p = VARDATA(p_result);
-	g_logdata.line_count = 0;
-       	g_logdata.i = 0;
-	g_logdata.max_line_size = 0;
-	g_logdata.first_newline_position = -1;
+	g_data.data = p_result;	
+	g_data.char_count = 0;
+       	g_data.p = VARDATA(p_result);
+	g_data.line_count = 0;
+       	g_data.i = 0;
+	g_data.max_line_size = 0;
+	g_data.first_newline_position = -1;
 
 }
 
-static void logdata_start_from_newline(text *p_result)
+static bool data_has_more()
 {
-	/*
-	 * to start reading after first newline
-	 */
-	g_logdata.data = p_result;	
-	g_logdata.char_count = g_logdata.first_newline_position + 1;
-       	g_logdata.p = (char *)VARDATA(p_result);
-	g_logdata.line_count = 0;
-       	g_logdata.i = 0;
+	return  g_data.char_count < VARSIZE(g_data.data);
 
 }
 
-static bool logdata_has_more()
+static void data_next()
 {
-	return  g_logdata.char_count < VARSIZE(g_logdata.data);
-
+        g_data.char_count++;
+	g_data.i++;
 }
 
-static void logdata_next()
+static	char data_get()
 {
-        g_logdata.char_count++;
-	g_logdata.i++;
+	return *(g_data.p + g_data.char_count);
 }
 
-static	char logdata_get()
+static	void data_incr_line_count()
 {
-	return *(g_logdata.p + g_logdata.char_count);
+	g_data.line_count++;
 }
 
-static	void logdata_incr_line_count()
+static void data_set_max_line_size()
 {
-	g_logdata.line_count++;
+	g_data.max_line_size = g_data.i;
 }
 
-static void logdata_set_max_line_size()
+static bool data_index_gt_max_line_size()
 {
-	g_logdata.max_line_size = g_logdata.i;
+	return g_data.i > g_data.max_line_size;
 }
 
-static bool logdata_index_gt_max_line_size()
+static int data_get_index()
 {
-	return g_logdata.i > g_logdata.max_line_size;
+	return g_data.i;
 }
 
-static int logdata_get_index()
+static void data_reset_index()
 {
-	return g_logdata.i;
+	g_data.i = 0;
 }
 
-static void logdata_reset_index()
+static int data_get_char_count()
 {
-	g_logdata.i = 0;
+	return g_data.char_count;
 }
 
-static int logdata_get_char_count()
+static int data_get_line_count()
 {
-	return g_logdata.char_count;
+	return g_data.line_count;
 }
 
-static int logdata_get_line_count()
+static int data_get_max_line_size()
 {
-	return g_logdata.line_count;
+	return g_data.max_line_size;
 }
 
-static int logdata_get_max_line_size()
+static void data_set_first_newline_position (int pos)
 {
-	return g_logdata.max_line_size;
-}
-
-static void logdata_set_first_newline_position (int pos)
-{
-	g_logdata.first_newline_position = pos;
+	g_data.first_newline_position = pos;
 }
 
 /* --- ---- */
@@ -199,8 +183,6 @@ static Datum pg_read_internal(const char *filename)
 	
 	PGFunction	func;
 	text		*lfn;	
-	int64		offset;
-	int64		length;
 	struct stat	stat_buf;
 	int		rc;
 	text		*result;
@@ -217,7 +199,6 @@ static Datum pg_read_internal(const char *filename)
 	memcpy(VARDATA(lfn), filename, strlen(filename));
 	SET_VARSIZE(lfn, strlen(filename) + VARHDRSZ);
 
-	offset = 0; 
 #if PG_VERSION_NUM > 110000
 	func = pg_read_file_all;
 #else
@@ -229,24 +210,24 @@ static Datum pg_read_internal(const char *filename)
 	 * check returned data
 	 */
 
-	for (logdata_start(result);  logdata_has_more(); logdata_next())
+	for (data_start(result);  data_has_more(); data_next())
 	{
-		c = logdata_get();
+		c = data_get();
 		if (c == '\n')
 		{
 			  if (first_newline_position == 0)
-				  first_newline_position = logdata_get_index();
-			  logdata_incr_line_count();
-			  if (logdata_index_gt_max_line_size())
-			  	logdata_set_max_line_size();
-			  logdata_reset_index();
+				  first_newline_position = data_get_index();
+			  data_incr_line_count();
+			  if (data_index_gt_max_line_size())
+			  	data_set_max_line_size();
+			  data_reset_index();
 		}
 	
 	}
 
-	logdata_set_first_newline_position(first_newline_position);
+	data_set_first_newline_position(first_newline_position);
 
-	elog(DEBUG1, "pg_read_internal: checked %d characters in %d lines (longest=%d)", logdata_get_char_count(), logdata_get_line_count(), logdata_get_max_line_size());
+	elog(DEBUG1, "pg_read_internal: checked %d characters in %d lines (longest=%d)", data_get_char_count(), data_get_line_count(), data_get_max_line_size());
 	g_result = result;
 
 	return (Datum)0;
@@ -297,7 +278,7 @@ static Datum pg_procfs_internal(FunctionCallInfo fcinfo)
 	tupdesc = CreateTemplateTupleDesc(2);
 #endif
 	TupleDescInitEntry(tupdesc, (AttrNumber) 1, "lineno", INT4OID, -1, 0);
-	TupleDescInitEntry(tupdesc, (AttrNumber) 2, "message", TEXTOID, -1, 0);
+	TupleDescInitEntry(tupdesc, (AttrNumber) 2, "data", TEXTOID, -1, 0);
 
 	randomAccess = (rsinfo->allowedModes & SFRM_Materialize_Random) != 0;
 	tupstore = tuplestore_begin_heap(randomAccess, false, work_mem);
@@ -309,24 +290,24 @@ static Datum pg_procfs_internal(FunctionCallInfo fcinfo)
 
 	attinmeta = TupleDescGetAttInMetadata(tupdesc);
 
-	for (logdata_start(g_result), i=0 ;logdata_has_more();logdata_next(), i++)
+	for (data_start(g_result), i=0 ;data_has_more();data_next(), i++)
         {
 		char		buf_v1[20];
 		char		buf_v2[PG_PROCFS_MAX_LINE_SIZE];
 		char 		*values[2];
 		HeapTuple	tuple;
 
-		c = logdata_get();
+		c = data_get();
 		buf_v2[i] = c;
 		
-		if ( logdata_get_index() > PG_PROCFS_MAX_LINE_SIZE - 1)
-			elog(ERROR, "pg_procfs_internal: log line %d larger than %d", logdata_get_line_count() + 1, PG_PROCFS_MAX_LINE_SIZE);
+		if ( data_get_index() > PG_PROCFS_MAX_LINE_SIZE - 1)
+			elog(ERROR, "pg_procfs_internal: log line %d larger than %d", data_get_line_count() + 1, PG_PROCFS_MAX_LINE_SIZE);
 
                 if (c == '\n')
                 {
-			sprintf(buf_v1, "%d", logdata_get_line_count());	
+			sprintf(buf_v1, "%d", data_get_line_count());	
 			buf_v2[i] = '\0';
-			logdata_incr_line_count();
+			data_incr_line_count();
 			i = -1;
 
 			values[0] = buf_v1;
