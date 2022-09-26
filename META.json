@@ -42,7 +42,7 @@
       "url": "http://pgxn.org/meta/spec.txt"
    },
    "tags": [
-      "/procfs"
+      "proc fs"
    ],
    "release_status": "testing"
 }
