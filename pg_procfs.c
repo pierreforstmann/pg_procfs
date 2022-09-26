@@ -41,9 +41,8 @@ PG_MODULE_MAGIC;
 void		_PG_init(void);
 void		_PG_fini(void);
 
-PG_FUNCTION_INFO_V1(pg_read);
 PG_FUNCTION_INFO_V1(pg_procfs);
-static Datum pg_read_internal(const char *filename);
+static void pg_read_internal(const char *filename);
 static Datum pg_procfs_internal(FunctionCallInfo fcinfo);
 
 /*---- Variable declarations ----*/
@@ -168,17 +167,9 @@ static void data_set_first_newline_position (int pos)
 	g_data.first_newline_position = pos;
 }
 
-/* --- ---- */
+/* --- --- */
 
-Datum pg_read(PG_FUNCTION_ARGS)
-{
-   char *filename;
-
-   filename = PG_GETARG_CSTRING(0); 
-   return (pg_read_internal(filename));
-}
-
-static Datum pg_read_internal(const char *filename)
+static void pg_read_internal(const char *filename)
 {
 	
 	PGFunction	func;
@@ -230,22 +221,27 @@ static Datum pg_read_internal(const char *filename)
 	elog(DEBUG1, "pg_read_internal: checked %d characters in %d lines (longest=%d)", data_get_char_count(), data_get_line_count(), data_get_max_line_size());
 	g_result = result;
 
-	return (Datum)0;
-
 }
 
 Datum pg_procfs(PG_FUNCTION_ARGS)
 {
    char *filename;
+   bool filename_is_ok = false;
 
    filename = PG_GETARG_CSTRING(0); 
    elog(DEBUG1, "pg_procfs: filename=%s", filename); 
 
-   if (strstr(filename, "/proc") == NULL)
-	   elog(ERROR, "pg_procfs: file name %s does not belong to /proc", filename);
+   if (filename[0] == '/' && filename[1] == 'p' && filename[2] == 'r' && filename[3] == 'o' && filename[4] == 'c' && filename[5] == '/')
+	   filename_is_ok = true;
+   else elog(ERROR, "pg_procfs: file name %s does not belong to /proc", filename);
+   
+   if (filename_is_ok)
+   {
+   	pg_read_internal(filename);
+   	return (pg_procfs_internal(fcinfo));
+   }
 
-   pg_read_internal(filename);
-   return (pg_procfs_internal(fcinfo));
+   return (Datum)0;
 }
 
 
@@ -319,8 +315,6 @@ static Datum pg_procfs_internal(FunctionCallInfo fcinfo)
 			tuplestore_puttuple(tupstore, tuple);
                 }
         }
-
+	
 	return (Datum)0;
-
 }
-
