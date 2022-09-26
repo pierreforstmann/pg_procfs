@@ -241,6 +241,9 @@ Datum pg_procfs(PG_FUNCTION_ARGS)
    filename = PG_GETARG_CSTRING(0); 
    elog(DEBUG1, "pg_procfs: filename=%s", filename); 
 
+   if (strstr(filename, "/proc") == NULL)
+	   elog(ERROR, "pg_procfs: file name %s does not belong to /proc", filename);
+
    pg_read_internal(filename);
    return (pg_procfs_internal(fcinfo));
 }
