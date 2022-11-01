@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  *  
  * pg_procfs is a PostgreSQL extension which allows to display 
- * /procfs data using SQL. 
+ * /proc fs data using SQL. 
  * 
  * This program is open source, licensed under the PostgreSQL license.
  * For license terms, see the LICENSE file.
@@ -45,20 +45,26 @@ PG_FUNCTION_INFO_V1(pg_procfs);
 static void pg_read_internal(const char *filename);
 static Datum pg_procfs_internal(FunctionCallInfo fcinfo);
 
-/*---- Variable declarations ----*/
+/*---- Global variable declarations ----*/
 
 static text *g_result;
 
 /*
- * structure to access /proc  data 
+ * structure to access /proc data 
  */
-struct	data {
+struct {
+	/* data returned by pg_read_file_all  */
 	text	*data;
+	/* total number of characters */
 	int	char_count;
+	/* total number of lines */
 	int	line_count;
-	int	i; 
+	/* size of biggest line */
 	int	max_line_size;
+	/* data returned by pg_read_file_all in Datum format (from PG source code src/include/postgres.h) */
 	char	*p;
+	/* index of current character in current line */
+	int	i; 
 	int	first_newline_position;
 } g_data;
 
