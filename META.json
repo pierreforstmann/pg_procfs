@@ -1,7 +1,7 @@
 {
    "name": "pg_procfs",
-   "abstract": "displays /procfs data from SQL",
-   "version": "0.0.1",
+   "abstract": "displays /proc data from SQL",
+   "version": "0.0.2",
    "maintainer": [
       "Pierre Forstmann"
    ],
@@ -20,7 +20,7 @@
    },
    "provides": {
      "pg_procfs": {
-         "abstract": "displays /procfs data from SQL",
+         "abstract": "displays /proc data from SQL",
          "file": "pg_procfs.c",
          "docfile": "README.md",
          "version": "0.0.1"
