@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  *  
  * pg_procfs is a PostgreSQL extension which allows to display 
- * /proc fs data using SQL. 
+ * /proc data using SQL. 
  * 
  * This program is open source, licensed under the PostgreSQL license.
  * For license terms, see the LICENSE file.
@@ -50,9 +50,53 @@ static Datum pg_procfs_internal(FunctionCallInfo fcinfo);
 static text *g_result;
 
 /*
- * structure to access /proc data 
+ * structure to store /proc data 
+ *
+ * About text, VARDATA and VARSIZE:
+ *
+ * 1. text is defined in PG c.h as:
+ *
+ * typedef struct varlena text;
+ *
+ * with:
+ *
+ * struct varlena
+ * {
+ *    char        vl_len_[4];     
+ *    char        vl_dat[FLEXIBLE_ARRAY_MEMBER]; 
+ * }
+ *
+ * #define FLEXIBLE_ARRAY_MEMBER   // empty
+ *
+ * 2. VARDATA and VARSIZE are defined in postgres.h as:
+ *
+ *  #define VARDATA(PTR)                        VARDATA_4B(PTR)
+ *  #define VARSIZE(PTR)                        VARSIZE_4B(PTR) 
+ *
+ *  with:
+ *
+ *  #define VARDATA_4B(PTR)     (((varattrib_4b *) (PTR))->va_4byte.va_data)
+ *  #define VARSIZE_4B(PTR) \
+ *    ((((varattrib_4b *) (PTR))->va_4byte.va_header >> 2) & 0x3FFFFFFF)
+ *
+ * typedef union
+ * {
+ *    struct                      
+ *    {
+ *        uint32      va_header;
+ *        char        va_data[FLEXIBLE_ARRAY_MEMBER];
+ *    }           va_4byte;
+ *    struct                      
+ *    {
+ *        uint32      va_header;
+ *        uint32      va_tcinfo;/
+ *        char        va_data[FLEXIBLE_ARRAY_MEMBER]; 
+ *    }           va_compressed;
+ *  } varattrib_4b;
+ *
  */
-struct {
+
+static struct {
 	/* data returned by pg_read_file_all  */
 	text	*data;
 	/* total number of characters */
@@ -61,8 +105,6 @@ struct {
 	int	line_count;
 	/* size of biggest line */
 	int	max_line_size;
-	/* data returned by pg_read_file_all in Datum format (from PG source code src/include/postgres.h) */
-	char	*p;
 	/* index of current character in current line */
 	int	i; 
 	int	first_newline_position;
@@ -103,7 +145,6 @@ static void data_start(text *p_result)
 {
 	g_data.data = p_result;	
 	g_data.char_count = 0;
-       	g_data.p = VARDATA(p_result);
 	g_data.line_count = 0;
        	g_data.i = 0;
 	g_data.max_line_size = 0;
@@ -125,7 +166,7 @@ static void data_next()
 
 static	char data_get()
 {
-	return *(g_data.p + g_data.char_count);
+	return *(VARDATA(g_data.data) + g_data.char_count);
 }
 
 static	void data_incr_line_count()
