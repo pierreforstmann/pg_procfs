@@ -12,7 +12,7 @@ This module can be built using the standard PGXS infrastructure. For this to wor
 `make` <br>
 `make install` <br>
 
-This extension has been validated with PostgreSQL 11, 12, 13, 14 and 15.
+This extension has been validated with PostgreSQL 11, 12, 13, 14, 15 and 16.
 
 It is not supported with PostgreSQL 10 due to following error message:
 `ERROR:  absolute path not allowed`
