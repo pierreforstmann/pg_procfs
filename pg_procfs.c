@@ -32,6 +32,9 @@
 #include "catalog/pg_type.h"
 #endif
 
+#include "utils/tuplestore.h"
+#include "catalog/pg_type_d.h"
+
 #define PG_PROCFS_MAX_LINE_SIZE	32768	
 
 PG_MODULE_MAGIC;
@@ -152,59 +155,59 @@ static void data_start(text *p_result)
 
 }
 
-static bool data_has_more()
+static bool data_has_more(void)
 {
 	return  g_data.char_count < VARSIZE(g_data.data);
 
 }
 
-static void data_next()
+static void data_next(void)
 {
         g_data.char_count++;
 	g_data.i++;
 }
 
-static	char data_get()
+static	char data_get(void)
 {
 	return *(VARDATA(g_data.data) + g_data.char_count);
 }
 
-static	void data_incr_line_count()
+static	void data_incr_line_count(void)
 {
 	g_data.line_count++;
 }
 
-static void data_set_max_line_size()
+static void data_set_max_line_size(void)
 {
 	g_data.max_line_size = g_data.i;
 }
 
-static bool data_index_gt_max_line_size()
+static bool data_index_gt_max_line_size(void)
 {
 	return g_data.i > g_data.max_line_size;
 }
 
-static int data_get_index()
+static int data_get_index(void)
 {
 	return g_data.i;
 }
 
-static void data_reset_index()
+static void data_reset_index(void)
 {
 	g_data.i = 0;
 }
 
-static int data_get_char_count()
+static int data_get_char_count(void)
 {
 	return g_data.char_count;
 }
 
-static int data_get_line_count()
+static int data_get_line_count(void)
 {
 	return g_data.line_count;
 }
 
-static int data_get_max_line_size()
+static int data_get_max_line_size(void)
 {
 	return g_data.max_line_size;
 }
